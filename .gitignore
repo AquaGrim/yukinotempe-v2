@@ -1,0 +1,24 @@
+# Env dan API keys
+.env
+
+# Session WhatsApp Baileys (Berisi credential login)
+session/
+sessions/
+
+# Database
+database/
+*.db
+*.sqlite
+
+# Modul Node.js
+node_modules/
+
+# Mac file system
+.DS_Store
+
+# Log PM2
+*.log
+logs/
+
+# QR Code login image
+qr.png
