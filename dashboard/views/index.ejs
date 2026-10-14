@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yukinotempe Admin Dashboard</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; color: #333; }
+        .header { background: #6c5ce7; color: white; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .stats { display: flex; justify-content: space-around; background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .stat-box { text-align: center; }
+        .stat-box h3 { margin: 0; font-size: 14px; color: #7f8c8d; }
+        .stat-box p { margin: 5px 0 0 0; font-size: 24px; font-weight: bold; color: #2d3436; }
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #a29bfe; color: white; }
+        tr:hover { background-color: #f1f2f6; }
+        .banned { color: red; font-weight: bold; }
+        .btn { padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; color: white; }
+        .btn-green { background: #00b894; }
+        .btn-red { background: #d63031; }
+        form { display: inline; }
+        input[type="number"] { width: 80px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>🌟 Yukinotempe Admin Panel 🌟</h1>
+        <p>Kelola data player dan ekonomi server secara langsung!</p>
+    </div>
+
+    <div class="stats">
+        <div class="stat-box">
+            <h3>TOTAL PEMAIN</h3>
+            <p><%= totalPlayers %> Orang</p>
+        </div>
+        <div class="stat-box">
+            <h3>TOTAL SIRKULASI GOLD</h3>
+            <p>💰 <%= totalGold.toLocaleString('id-ID') %> G</p>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID (No WA)</th>
+                <th>Nama</th>
+                <th>Level</th>
+                <th>Dompet + Bank</th>
+                <th>Status</th>
+                <th>Aksi (Admin)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% players.forEach(player => { %>
+                <tr>
+                    <td><%= player.id.split('@')[0] %></td>
+                    <td><%= player.name %></td>
+                    <td>Lvl <%= player.level %></td>
+                    <td>💰 <%= (player.money + player.bank).toLocaleString('id-ID') %></td>
+                    <td>
+                        <% if (player.isBanned) { %>
+                            <span class="banned">🚫 BANNED</span>
+                        <% } else { %>
+                            <span style="color: green;">✔ Aktif</span>
+                        <% } %>
+                    </td>
+                    <td>
+                        <!-- Form Tambah Gold -->
+                        <form action="/addgold" method="POST" style="margin-right: 10px;">
+                            <input type="hidden" name="targetId" value="<%= player.id %>">
+                            <input type="number" name="amount" placeholder="+Gold" required>
+                            <button type="submit" class="btn btn-green">Beri Gold</button>
+                        </form>
+                        
+                        <!-- Form Ban/Unban -->
+                        <form action="/toggleban" method="POST">
+                            <input type="hidden" name="targetId" value="<%= player.id %>">
+                            <input type="hidden" name="status" value="<%= player.isBanned ? 0 : 1 %>">
+                            <button type="submit" class="btn <%= player.isBanned ? 'btn-green' : 'btn-red' %>">
+                                <%= player.isBanned ? 'Unban' : 'Ban' %>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+            <% }) %>
+        </tbody>
+    </table>
+
+</body>
+</html>

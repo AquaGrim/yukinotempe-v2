@@ -95,9 +95,53 @@ async function handleSlot(sock, msg, from, sender, args) {
     }
 
     const emojis = ['🍒', '🍎', '🍇', '💎', '7️⃣'];
-    const s1 = emojis[Math.floor(Math.random() * emojis.length)];
-    const s2 = emojis[Math.floor(Math.random() * emojis.length)];
-    const s3 = emojis[Math.floor(Math.random() * emojis.length)];
+    
+    // Sistem Rigging (Penyesuaian Win Rate)
+    // 0 = Kalah total (Ketiga buah beda)
+    // 1 = Menang kecil (Dua buah sama)
+    // 2 = JACKPOT (Tiga buah sama)
+    
+    const rng = Math.random();
+    let resultType = 0;
+    
+    // Chance baru: Jackpot = 5%, Menang Kecil = 20%, Kalah = 75%
+    if (rng < 0.05) {
+        resultType = 2; // Jackpot
+    } else if (rng < 0.25) {
+        resultType = 1; // Menang kecil
+    } else {
+        resultType = 0; // Kalah
+    }
+
+    let s1, s2, s3;
+
+    if (resultType === 2) {
+        s1 = emojis[Math.floor(Math.random() * emojis.length)];
+        s2 = s1;
+        s3 = s1;
+    } else if (resultType === 1) {
+        s1 = emojis[Math.floor(Math.random() * emojis.length)];
+        s2 = s1;
+        
+        do {
+            s3 = emojis[Math.floor(Math.random() * emojis.length)];
+        } while (s3 === s1); // Pastikan buah ketiga beda supaya tidak jadi jackpot
+        
+        // Acak posisinya (Bisa buah pertama yang beda, atau di tengah)
+        const shufflePos = Math.floor(Math.random() * 3);
+        if (shufflePos === 1) { [s1, s3] = [s3, s1]; }
+        else if (shufflePos === 2) { [s2, s3] = [s3, s2]; }
+    } else {
+        s1 = emojis[Math.floor(Math.random() * emojis.length)];
+        
+        do {
+            s2 = emojis[Math.floor(Math.random() * emojis.length)];
+        } while (s2 === s1);
+        
+        do {
+            s3 = emojis[Math.floor(Math.random() * emojis.length)];
+        } while (s3 === s1 || s3 === s2);
+    }
 
     let replyMsg = `🎰 *MESIN SLOT* 🎰\n👤 Pemain: *${user.name}*\n\n[ ${s1} | ${s2} | ${s3} ]\n\n`;
 

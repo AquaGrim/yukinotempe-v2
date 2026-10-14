@@ -1,6 +1,6 @@
 const { getUser, saveUsers, isUserRegistered } = require('../../utils/databaseHelper');
 
-const GACHA_COST = 50; // Harga 1x Gacha
+const GACHA_COST = 250; // Harga 1x Gacha
 
 async function handleGacha(sock, msg, from, sender, args) {
     if (!isUserRegistered(sender)) return sock.sendMessage(from, { text: 'Kamu belum terdaftar! 🥺' }, { quoted: msg });

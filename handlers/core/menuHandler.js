@@ -1,5 +1,53 @@
 async function handleMenu(sock, msg, from, sender, pushName) {
-    const menuText = `🌟 *YUKINOTEMPE V2 MENU* 🌟\n\nHalo *${pushName}*! 💜\nBerikut adalah daftar command yang tersedia saat ini:\n\n🎮 *Core & RPG Commands*\n• *!regist Nama | Umur* - Mendaftar ke database bot.\n• *!profil* - Cek status profil\n• *!inv* - Buka Inventory tas\n• *!daily* - Mengambil hadiah login harian (Tiap 24 jam).\n• *!mancing* - Memancing otomatis (Tunggu 1 menit).\n• *!petualang* - Berpetualang mencari gold/item (Stamina: 3).\n• *!lawan* - Melawan monster hutan (Stamina: 1).\n• *!gacha [jumlah]* - Gacha Karakter/Item (50 Gold/roll).\n• *!shop* - Membuka toko untuk membeli item.\n• *!beli [item] [jumlah]* - Membeli item dari toko.\n• *!jual [ikan] [jumlah/semua]* - Menjual ikan untuk Gold.\n• *!listikan* / *!ikan* - Melihat daftar ikan & harga.\n• *!afk [alasan]* - Mengaktifkan mode AFK.\n• *!pakai [item] [jumlah]* - Memakai item (Potion/Dll).\n\n🎰 *Gambling / Judi*\n• *!cf / !coinflip [head/tail] [taruhan]* - Main tebak koin.\n• *!slot [taruhan]* - Main mesin slot berhadiah jackpot.\n\n📚 *Edukasi & Fun*\n• *!tanya [teks]* - Ngobrol langsung dengan Yuki AI.\n• *!tebakkata* - Main tebak kata berhadiah.\n• *!sticker* - Ubah gambar jadi stiker.\n• *!brat [teks]* - Bikin stiker meme brat kotak putih.\n• *!katabijak* - Dapatkan quotes motivasi acak.\n• *!haribesar* - Mengecek peringatan hari ini.\n• *!ayat* - Ayat acak Al-Quran beserta terjemahannya.\n• *!kamus [kata]* - Translate Inggris ke Indonesia.\n\n🛠️ *Utility & Admin*\n• *!tiktok [url]* - Download video tiktok tanpa watermark.\n• *!ping* - Mengecek apakah bot aktif.\n• *!addgold [jumlah] [@user]* - (Admin) Menambah gold user.\n• *!menu* - Menampilkan daftar perintah ini.\n\n_(Terus berinteraksi dengan bot untuk mendapatkan EXP dan naik level! 💜)_`;
+    const menuText = `🌟 *YUKINOTEMPE V2 MENU* 🌟
+Halo *${pushName}*! 💜
+
+🎮 *RPG & Core*
+• !regist
+• !profil
+• !lb
+• !inv
+• !daily
+• !mancing
+• !petualang
+• !lawan
+• !shop
+• !beli
+• !jual
+• !tf
+• !bank 
+• !ladang
+• !tanam
+• !panen
+• !zoo (atau !pet)
+• !index (Index Ikan)
+• !indexpet (Index Pet)
+• !gacha
+• !afk
+• !pakai
+• !listikan
+
+🎰 *Mini-Games*
+• !ttt
+• !cf
+• !slot
+
+📚 *Fun & Tools*
+• !tanya
+• !tebakkata
+• !sticker
+• !brat
+• !gif [kata kunci]
+• !tiktok
+• !ping 
+
+🛠️ *Admin*
+• !addgold
+• !ban
+• !event [mulai/stop/status]
+• !listuser
+
+_Bingung cara pakainya? Ketik *!tanya [pertanyaanmu]* biar Yuki jelasin! 💜_`;
 
     return sock.sendMessage(from, { text: menuText }, { quoted: msg });
 }

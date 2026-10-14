@@ -22,3 +22,7 @@ logs/
 
 # QR Code login image
 qr.png
+
+# Cache dan runtime data
+data/gif_cache/
+utils/last_checked_email.txt

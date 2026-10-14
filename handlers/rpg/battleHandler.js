@@ -30,27 +30,58 @@ async function handleBattle(sock, msg, from, sender) {
 
     // Kalkulasi Win Rate
     let winChance = 0.5; // Base 50%
-    if (user.inventory.buffActive) {
-        winChance += 0.25; // Tambah 25% jika ada buff scroll
-        user.inventory.buffActive = false; // Hapus buff setelah terpakai
+    let bonusExpRate = 1;
+
+    // Buff Profesi Ksatria
+    if (user.inventory.job === 'ksatria') {
+        const jobLv = user.inventory.jobLevel || 1;
+        winChance += (jobLv / 100); // Nambah 1% peluang menang per level job
+        bonusExpRate += (jobLv * 2 / 100); // Nambah 2% EXP per level job
+    }
+
+    // Handle Buff Scroll
+    let buffInfo = "";
+    if (user.inventory.buffActive && user.inventory.buffCharges > 0) {
+        winChance += 0.25; // Tetap 25% fix per pertarungan
+        user.inventory.buffCharges -= 1; // Kurangi 1 charge
+        
+        buffInfo = `\n_(📜 Efek Buff +25% Aktif! Sisa ${user.inventory.buffCharges}x)_`;
+        
+        // Kalau jatah habis, matikan buff-nya
+        if (user.inventory.buffCharges <= 0) {
+            user.inventory.buffActive = false;
+        }
+    } else if (user.inventory.buffActive) {
+        // Fallback kalau data lama belum pake system charges
+        winChance += 0.25;
+        user.inventory.buffActive = false;
+        buffInfo = `\n_(📜 Efek Buff +25% Aktif! Buff habis)_`;
     }
 
     if (Math.random() > winChance) {
         saveUsers(usersMap);
-        return sock.sendMessage(from, { text: `⚔️ *PERTARUNGAN* ⚔️\n\nAduh! Kamu kalah melawan monster hutan 🥺\nCoba lagi nanti.` }, { quoted: msg });
+        return sock.sendMessage(from, { text: `⚔️ *PERTARUNGAN* ⚔️\n\nAduh! Kamu kalah melawan monster hutan 🥺\nCoba lagi nanti.${buffInfo}` }, { quoted: msg });
     }
 
     // Kalau Menang
     const goldFound = Math.floor(Math.random() * 40) + 20; // 20 - 59 Gold
-    const expGain = Math.floor(Math.random() * 15) + 10; // 10 - 24 EXP
+    const expGain = Math.floor((Math.floor(Math.random() * 15) + 10) * bonusExpRate); // 10 - 24 EXP
 
     user.money += goldFound;
     user.exp += expGain;
+    
+    // === JOB SYSTEM EXP ===
+    const { addJobExp } = require('../../utils/jobHelper');
+    let jobExpText = "";
+    const jobResult = addJobExp(sender, "ksatria", 40); // Bertarung dapet +40 Job EXP
+    if (jobResult.leveledUp) {
+        jobExpText = `\n🎓 *PROFESI NAIK LEVEL!* Kemampuan Ksatria-mu kini Lv.${jobResult.newLevel}!`;
+    }
 
     let replyText = `⚔️ *PERTARUNGAN* ⚔️\n\n` +
                     `Kamu berhasil mengalahkan monster hutan dengan telak! 🎉\n` +
                     `💰 *+${goldFound} Gold*\n` +
-                    `✨ *+${expGain} EXP*\n`;
+                    `✨ *+${expGain} EXP*\n` + buffInfo + `\n` + jobExpText;
 
     // Drop Spesial: Gold Coin
     user.inventory["Gold Coin"] = (user.inventory["Gold Coin"] || 0) + 1;

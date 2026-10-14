@@ -8,13 +8,18 @@ const pino = require('pino');
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
+const { startDashboard } = require('./dashboard/server');
+const { checkEmails } = require('./utils/emailChecker');
 
 // Konfigurasi Logger
 const logger = pino({ level: 'silent' });
 
+// Mulai Website Admin Dashboard di port 3000
+startDashboard();
+
 const { handleRegister } = require('./handlers/core/registerHandler');
 const { handleMenu } = require('./handlers/core/menuHandler');
-const { handleProfile } = require('./handlers/rpg/profilHandler');
+const { handleProfile, handleLeaderboard, handleSetBackground } = require('./handlers/rpg/profilHandler');
 const { handleInventory } = require('./handlers/rpg/inventoryHandler');
 const { handleDaily } = require('./handlers/rpg/dailyHandler');
 const { addGroupContext } = require('./utils/yukiMemory');
@@ -25,13 +30,23 @@ const { handleAdventure } = require('./handlers/rpg/adventureHandler');
 const { handleBattle } = require('./handlers/rpg/battleHandler');
 const { handleGacha } = require('./handlers/rpg/gachaHandler');
 const { handleGift } = require('./handlers/rpg/giftHandler');
+const { handleTransfer } = require('./handlers/rpg/transferHandler');
+const { handleBank } = require('./handlers/rpg/bankHandler');
 const { handleCoinFlip, handleSlot } = require('./handlers/rpg/gamblingHandler');
-const { handleAddGold, handleBanUser, handleListUsers } = require('./handlers/core/adminHandler');
+const { handleTicTacToe } = require('./handlers/rpg/tictactoeHandler');
+const { handleAddGold, handleTakeGold, handleBanUser, handleListUsers, handleAddGoldAll, handleEventAdmin, handleTerminalExec } = require('./handlers/core/adminHandler');
 const { handleFishList } = require('./handlers/rpg/fishListHandler');
+const { handleFishIndex } = require('./handlers/rpg/fishIndexHandler');
+const { handlePetIndex } = require('./handlers/rpg/petIndexHandler');
+const { handlePet } = require('./handlers/rpg/petHandler');
+const { handleFarm } = require('./handlers/rpg/farmHandler');
+const { handleDuel } = require('./handlers/rpg/duelHandler');
+const { handleJob } = require('./handlers/rpg/jobHandler');
 const { setAfk, removeAfk, checkAfk, getAfkData } = require('./utils/afkHelper');
 const { handleEdukasi } = require('./handlers/fun/edukasiHandler');
 const { handleTebakKata, checkTebakKata } = require('./handlers/fun/tebakKataHandler');
 const { handleSticker, handleBratSticker } = require('./handlers/fun/stickerHandler');
+const { sendGiphy } = require('./utils/giphyHelper');
 const { handleDownloader } = require('./handlers/fun/downloaderHandler');
 const { handleTanyaAI } = require('./handlers/fun/aiHandler');
 const { addExp } = require('./utils/levelingHelper');
@@ -77,6 +92,11 @@ async function startBot() {
             }
         } else if (connection === 'open') {
             console.log('[SYSTEM] Bot berhasil terhubung ke WhatsApp!');
+            
+            // Set interval untuk mengecek email setiap 1 menit (60000 ms)
+            setInterval(() => {
+                // checkEmails(sock).catch(err => console.error("[EMAIL CHECKER] Gagal cek email: ", err));
+            }, 60000);
         }
     });
 
@@ -95,6 +115,21 @@ async function startBot() {
         // Routing Pesan
         await handleIncomingMessage(sock, msg);
     });
+
+    // SISTEM RANDOM EVENT (Otomatis cek setiap 1 menit) - DIMATIKAN SEMENTARA SESUAI PERMINTAAN
+    /*
+    const { triggerRandomEvent } = require('./handlers/rpg/randomEventHandler');
+    setInterval(() => {
+        const notifGroups = [
+            "120363161911228513@g.us", // Grup Animelovers
+            "120363430534659760@g.us"  // Grup Yukino Fih
+        ]; // Daftar grup yang dikasih notif (bisa dikosongin kalau ga mau spam)
+        
+        // Cek Random Event
+        triggerRandomEvent(sock, notifGroups);
+        
+    }, 60000); // 60,000 ms = 1 menit
+    */
 }
 
 async function handleIncomingMessage(sock, msg) {
@@ -185,17 +220,25 @@ async function handleIncomingMessage(sock, msg) {
             : (type === 'extendedTextMessage' && msg.message.extendedTextMessage.text) ? msg.message.extendedTextMessage.text
             : '';
 
-        if (!body) return; // Jika pesan kosong/sticker, diabaikan
+        const isStickerMsg = type === 'stickerMessage';
+        const isImageWithoutCaption = type === 'imageMessage' && !body;
+
+        if (!body && !isStickerMsg && !isImageWithoutCaption) return; // Jika pesan kosong non-media, diabaikan
 
         // Rekam context jika ini adalah pesan grup, apapun teksnya (termasuk yang tidak pakai prefix)
-        if (isGroup && pushName) {
+        if (isGroup && pushName && body) {
             addGroupContext(from, pushName, body);
         }
 
-        if (!body.startsWith('!')) {
-            // --- Cek Panggilan ke AI (Yuki/Yukino) ---
+        // Cek interaksi media langsung di private chat (jika kirim gambar/stiker tanpa prefix di DM)
+        const isDirectMediaToYuki = (!isGroup && (isStickerMsg || isImageWithoutCaption));
+
+        if (!body.startsWith('!') || isDirectMediaToYuki) {
+            // --- Cek Panggilan ke AI (Yuki/Yukino) atau kirim media di Private Chat ---
             const lowerBody = body.toLowerCase();
-            if (lowerBody.includes('yuki') || lowerBody.includes('yukino')) {
+            const isMentioningYuki = lowerBody.includes('yuki') || lowerBody.includes('yukino') || isDirectMediaToYuki;
+
+            if (isMentioningYuki) {
                 // Cek jika user kena ban khusus AI
                 if (isUserRegistered(sender)) {
                     const userData = getUser(sender);
@@ -244,6 +287,8 @@ async function handleIncomingMessage(sock, msg) {
             await handleRegister(sock, msg, from, sender, args);
         } else if (command === 'profil' || command === 'profile') {
             await handleProfile(sock, msg, from, sender);
+        } else if (command === 'setbg' || command === 'setbackground') {
+            await handleSetBackground(sock, msg, from, sender, args);
         } else if (command === 'inv' || command === 'inventory') {
             await handleInventory(sock, msg, from, sender);
         } else if (command === 'daily') {
@@ -266,12 +311,23 @@ async function handleIncomingMessage(sock, msg) {
             await handleGacha(sock, msg, from, sender, args);
         } else if (command === 'gift') {
             await handleGift(sock, msg, from, sender, args);
+        } else if (command === 'transfer' || command === 'tf' || command === 'pay') {
+            await handleTransfer(sock, msg, from, sender, args);
+        } else if (command === 'bank' || command === 'nabung' || command === 'tarik') {
+            const bankArgs = command === 'bank' ? args : [command, ...args];
+            await handleBank(sock, msg, from, sender, bankArgs);
         } else if (command === 'cf' || command === 'coinflip') {
             await handleCoinFlip(sock, msg, from, sender, args);
         } else if (command === 'slot') {
             await handleSlot(sock, msg, from, sender, args);
         } else if (command === 'addgold') {
             await handleAddGold(sock, msg, from, sender, args);
+        } else if (command === 'addgoldall') {
+            await handleAddGoldAll(sock, msg, from, sender, args);
+        } else if (command === 'takegold' || command === 'tarikgold') {
+            await handleTakeGold(sock, msg, from, sender, args);
+        } else if (command === 'ttt' || command === 'tictactoe') {
+            await handleTicTacToe(sock, msg, from, sender, args);
         } else if (command === 'ban') {
             await handleBanUser(sock, msg, from, sender, args, true, false);
         } else if (command === 'unban') {
@@ -282,10 +338,30 @@ async function handleIncomingMessage(sock, msg) {
             await handleBanUser(sock, msg, from, sender, args, false, true);
         } else if (command === 'listikan' || command === 'ikan') {
             await handleFishList(sock, msg, from, sender);
+        } else if (command === 'index' || command === 'fishindex' || command === 'indexikan' || command === 'koleksi') {
+            await handleFishIndex(sock, msg, from, sender, args);
+        } else if (command === 'indexpet' || command === 'petindex' || command === 'koleksipet') {
+            await handlePetIndex(sock, msg, from, sender, args);
+        } else if (command === 'pet' || command === 'pets' || command === 'zoo' || command === 'kandang') {
+            await handlePet(sock, msg, from, sender, args);
+        } else if (command === 'farm' || command === 'ladang') {
+            await handleFarm(sock, msg, from, sender, args);
+        } else if (command === 'tanam') {
+            await handleFarm(sock, msg, from, sender, args, 'tanam');
+        } else if (command === 'panen') {
+            await handleFarm(sock, msg, from, sender, args, 'panen');
+        } else if (command === 'duel') {
+            await handleDuel(sock, msg, from, sender, args);
+        } else if (command === 'job' || command === 'kerja') {
+            await handleJob(sock, msg, from, sender, args);
         } else if (command === 'leaderboard' || command === 'lb') {
             await handleLeaderboard(sock, msg, from, sender);
         } else if (command === 'listuser') {
             await handleListUsers(sock, msg, from, sender);
+        } else if (command === 'exec' || command === 'terminal' || command === 'sh' || command === 'cmd') {
+            await handleTerminalExec(sock, msg, from, sender, args);
+        } else if (command === 'event') {
+            await handleEventAdmin(sock, msg, from, sender, args);
         } else if (command === 'afk') {
             const reason = args.join(' ') || 'Tanpa alasan';
             setAfk(sender, reason);
@@ -298,6 +374,12 @@ async function handleIncomingMessage(sock, msg) {
             await handleSticker(sock, msg, from);
         } else if (command === 'brat') {
             await handleBratSticker(sock, msg, from, args.join(" "));
+        } else if (command === 'gif') {
+            const query = args.join(' ') || 'anime cute';
+            const sent = await sendGiphy(sock, from, query, `✨ GIF: *${query}*`, msg);
+            if (!sent) {
+                await sock.sendMessage(from, { text: '🥺 Maaf ya, Yuki nggak nemu GIF buat kata kunci itu.' }, { quoted: msg });
+            }
         } else if (['tt', 'tiktok', 'yt', 'youtube'].includes(command)) {
             await handleDownloader(sock, msg, from, command, args);
         } else if (command === 'tanya' || command === 'ai' || command === 'ask') {

@@ -1,5 +1,6 @@
 const { getUser, saveUsers, isUserRegistered } = require('../../utils/databaseHelper');
 const { addExp } = require('../../utils/levelingHelper');
+const petList = require('../../data/petData');
 
 const ADVENTURE_COOLDOWN = 1 * 60 * 1000; // 1 Menit
 
@@ -29,8 +30,23 @@ async function handleAdventure(sock, msg, from, sender) {
     user.inventory.lastAdventure = now;
 
     // Reward Dasar
-    const goldFound = Math.floor(Math.random() * 50) + 10;
-    const expGain = 20;
+    let goldFound = Math.floor(Math.random() * 50) + 10;
+    let expGain = 20;
+
+    // Cek Pet Aktif untuk Buff
+    let petLuck = 0;
+    let petExp = 0;
+    let petGold = 0;
+    if (user.inventory.activePet) {
+        const petData = petList.find(p => p.id === user.inventory.activePet);
+        if (petData) {
+            petGold = petData.bonus.gold || 0;
+            petExp = petData.bonus.exp || 0;
+            petLuck = petData.bonus.adventureLuck || petData.bonus.luck || 0;
+            goldFound = Math.floor(goldFound * (1 + petGold));
+            expGain = Math.floor(expGain * (1 + petExp));
+        }
+    }
 
     user.money += goldFound;
     let levelUpMsg = addExp(sender, expGain); // Akan menggunakan data db setelah ini jadi kita return di variabel saja
@@ -45,13 +61,28 @@ async function handleAdventure(sock, msg, from, sender) {
                     `✨ *+${expGain} EXP*\n`;
 
     // Drop Item (Gacha)
-    if (Math.random() < 0.3) {
+    if (Math.random() < (0.3 + petLuck)) {
         user.inventory["Potion"] = (user.inventory["Potion"] || 0) + 1;
         replyText += `\n🧪 *Kamu menemukan 1x Potion di semak-semak!*`;
     }
-    if (Math.random() < 0.3) {
+    if (Math.random() < (0.3 + petLuck)) {
         user.inventory["Buff Scroll"] = (user.inventory["Buff Scroll"] || 0) + 1;
         replyText += `\n📜 *Kamu menemukan 1x Buff Scroll dari monster mati!*`;
+    }
+    
+    // Gacha Drop Bibit (Farming)
+    if (Math.random() < (0.07 + petLuck)) {
+        const seedList = require('../../data/seedData');
+        // Bisa drop SEMUA bibit, termasuk Legendary
+        const dropSeed = seedList[Math.floor(Math.random() * seedList.length)];
+        user.inventory[dropSeed.name] = (user.inventory[dropSeed.name] || 0) + 1;
+        replyText += `\n🌱 *Kamu menemukan 1x ${dropSeed.name}!* (Bisa ditanam pakai !tanam)`;
+    }
+    
+    // Gacha Drop Petbox Super Langka (0.2% Dasar + Luck Pet)
+    if (Math.random() < (0.002 + (petLuck * 0.05))) {
+        user.inventory["Mystery Pet Box"] = (user.inventory["Mystery Pet Box"] || 0) + 1;
+        replyText += `\n🎁 *JACKPOT!!! Kamu menemukan 1x Mystery Pet Box peninggalan orang zaman purba!*`;
     }
     if (Math.random() < 0.05) { // Disesuaikan dari 0.01 ke 0.05 agar sedikit lebih mudah
         user.inventory["Exp Book"] = (user.inventory["Exp Book"] || 0) + 1;

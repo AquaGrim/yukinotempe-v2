@@ -9,12 +9,13 @@ async function handleFishList(sock, msg, from, sender) {
         rare: [],
         epic: [],
         legendary: [],
-        mythic: []
+        mythic: [],
+        divine: []
     };
 
     fishList.forEach(fish => {
         if (groupedFishes[fish.rarity]) {
-            groupedFishes[fish.rarity].push(`- ${fish.name} (💰 ${fish.price})`);
+            groupedFishes[fish.rarity].push(`- ${fish.name} (💰 ${fish.price.toLocaleString('id-ID')})`);
         }
     });
 
@@ -26,7 +27,8 @@ async function handleFishList(sock, msg, from, sender) {
     replyText += `🦐 *RARE (Langka)*\n${groupedFishes.rare.join('\n')}\n\n`;
     replyText += `🦞 *EPIC (Sangat Langka)*\n${groupedFishes.epic.join('\n')}\n\n`;
     replyText += `🦈 *LEGENDARY (Legendaris)*\n${groupedFishes.legendary.join('\n')}\n\n`;
-    replyText += `🐉 *MYTHIC (Mitos)*\n${groupedFishes.mythic.join('\n')}`;
+    replyText += `🐉 *MYTHIC (Mitos)*\n${groupedFishes.mythic.join('\n')}\n\n`;
+    replyText += `✨ *DIVINE (Dewa)*\n${groupedFishes.divine.join('\n')}`;
 
     return sock.sendMessage(from, { text: replyText }, { quoted: msg });
 }
