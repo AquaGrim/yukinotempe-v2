@@ -196,33 +196,42 @@ async function handleBanUser(sock, msg, from, sender, args, isBan, isAiOnly = fa
         return sock.sendMessage(from, { text: `❌ Perintah ini hanya bisa digunakan oleh Admin (Owner Bot)!` }, { quoted: msg });
     }
 
-    // Mengambil target JID dari mention (tag)
-    const mentionedJid = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+    // Mengambil contextInfo dari berbagai tipe pesan (extended, image, video, sticker, dll)
+    const contextInfo = msg.message?.extendedTextMessage?.contextInfo 
+        || msg.message?.imageMessage?.contextInfo 
+        || msg.message?.videoMessage?.contextInfo 
+        || msg.message?.stickerMessage?.contextInfo 
+        || {};
+
+    // 1. Cek mention / tag (@user)
+    const mentionedJid = contextInfo.mentionedJid || [];
     let target = mentionedJid[0];
     
-    // Jika tidak tag, cek apakah me-reply pesan
-    if (!target) {
-        const quotedMsg = msg.message?.extendedTextMessage?.contextInfo?.participant;
-        if (quotedMsg) target = quotedMsg;
+    // 2. Cek apakah me-reply pesan orang lain
+    if (!target && contextInfo.participant) {
+        target = contextInfo.participant;
+    }
+
+    // 3. Cek apakah admin mengetik nomor langsung di args (misal: !ban 628xxx 10 atau !ban 08xxx 10)
+    let durationMinutes = null;
+    if (!target && args.length > 0) {
+        for (const arg of args) {
+            const cleanDigits = arg.replace(/[^0-9]/g, '');
+            // Jika ada argumen yang panjang digitnya >= 9, berarti itu nomor HP target!
+            if (cleanDigits.length >= 9) {
+                let formattedNum = cleanDigits;
+                if (formattedNum.startsWith('0')) {
+                    formattedNum = '62' + formattedNum.slice(1);
+                }
+                target = formattedNum + '@s.whatsapp.net';
+                break;
+            }
+        }
     }
 
     if (!target) {
         const typeText = isAiOnly ? 'AI Yuki' : 'Bot Global';
-        return sock.sendMessage(from, { text: `Kamu harus men-tag (@) user atau me-reply pesan user yang mau di-${isBan ? 'ban' : 'unban'} dari fitur ${typeText}!\n\n📌 *Format Penggunaan:*\n- *!ban @user [durasi_menit]* (Contoh: \`!ban @user 60\` untuk ban 60 menit, atau tanpa angka untuk ban permanen)\n- *!banai @user [durasi_menit]* (Khusus ban AI Yuki)` }, { quoted: msg });
-    }
-
-    // Ambil parameter durasi menit jika ada
-    let durationMinutes = null;
-    if (isBan) {
-        for (const arg of args) {
-            const cleanArg = arg.replace(/[^0-9]/g, '');
-            // Ambil angka yang bukan bagian dari tag nomor handphone target
-            const targetNumber = target.split('@')[0];
-            if (cleanArg && cleanArg !== targetNumber && parseInt(cleanArg) > 0) {
-                durationMinutes = parseInt(cleanArg);
-                break;
-            }
-        }
+        return sock.sendMessage(from, { text: `Kamu harus men-tag (@) user, me-reply pesan user, atau ketik nomornya langsung!\n\n📌 *Format Penggunaan:*\n- *!ban @user [durasi_menit]* (Contoh: \`!ban @user 60\` untuk ban 60 menit, atau tanpa angka untuk ban permanen)\n- *!ban 08xxxxxx [durasi_menit]*\n- *!banai @user [durasi_menit]* (Khusus ban AI Yuki)` }, { quoted: msg });
     }
 
     // === LID MAPPING UNTUK TARGET BAN ===
@@ -231,7 +240,26 @@ async function handleBanUser(sock, msg, from, sender, args, isBan, isAiOnly = fa
             const pnTarget = await sock.signalRepository.lidMapping.getPNForLID(target);
             if (pnTarget) target = pnTarget;
         } catch (e) {
-            console.error('[WARNING] Gagal me-resolve LID target:', e);
+            console.error('[WARNING] Gagal me-resolve LID target via signalRepository:', e);
+        }
+        
+        // Fallback jika signalRepository belum memetakan: cari di file session lid-mapping
+        if (target.endsWith('@lid')) {
+            try {
+                const fs = require('fs');
+                const path = require('path');
+                const lidNum = target.replace('@lid', '').split(':')[0];
+                const sessionDir = path.join(__dirname, '../../session');
+                const reverseFile = path.join(sessionDir, `lid-mapping-${lidNum}_reverse.json`);
+                if (fs.existsSync(reverseFile)) {
+                    const rawPn = JSON.parse(fs.readFileSync(reverseFile, 'utf8'));
+                    if (rawPn) {
+                        target = rawPn.replace(/[^0-9]/g, '') + '@s.whatsapp.net';
+                    }
+                }
+            } catch (err) {
+                console.error('[WARNING] Fallback file lid-mapping error:', err);
+            }
         }
     }
     
@@ -239,8 +267,20 @@ async function handleBanUser(sock, msg, from, sender, args, isBan, isAiOnly = fa
         target = target.split(':')[0] + '@s.whatsapp.net';
     }
 
+    // Ambil parameter durasi menit jika ada (angka yang bukan nomor handphone target)
+    if (isBan) {
+        const targetNumber = target.split('@')[0];
+        for (const arg of args) {
+            const cleanArg = arg.replace(/[^0-9]/g, '');
+            if (cleanArg && cleanArg !== targetNumber && parseInt(cleanArg) > 0 && cleanArg.length < 8) {
+                durationMinutes = parseInt(cleanArg);
+                break;
+            }
+        }
+    }
+
     if (!isUserRegistered(target)) {
-        return sock.sendMessage(from, { text: 'User tersebut belum terdaftar di database bot.' }, { quoted: msg });
+        return sock.sendMessage(from, { text: `User @${target.split('@')[0]} belum terdaftar di database bot! 🥺`, mentions: [target] }, { quoted: msg });
     }
 
     const user = getUser(target);
