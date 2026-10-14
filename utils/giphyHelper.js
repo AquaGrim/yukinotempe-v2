@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
-const GIPHY_API_KEY = process.env.GIPHY_API_KEY || 'cNPjDSHK2L40DitgpLLH83Jyiad8wcZb';
+const GIPHY_API_KEY = process.env.GIPHY_API_KEY || '';
 
 // Direktori cache lokal
 const CACHE_BASE_DIR = path.join(__dirname, '../data/gif_cache');
@@ -183,7 +183,7 @@ function fetchGiphyMp4(query) {
             finalQuery = "anime " + finalQuery;
         }
         const encodedQuery = encodeURIComponent(finalQuery);
-        const url = `https://api.giphy.com/v1/gifs/search?api_key=cNPjDSHK2L40DitgpLLH83Jyiad8wcZb&q=${encodedQuery}&limit=10&rating=g`;
+        const url = `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&q=${encodedQuery}&limit=10&rating=g`;
 
         https.get(url, (res) => {
             let data = '';

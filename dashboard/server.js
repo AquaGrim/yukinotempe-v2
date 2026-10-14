@@ -17,7 +17,7 @@ function startDashboard() {
     app.use(express.json());
 
     const adminAuth = basicAuth({
-        users: { 'yukiadmin': 'sayangzeta123' },
+        users: { 'admin': process.env.ADMIN_PASSWORD || 'admin' },
         challenge: true,
         realm: 'Yukinotempe Dashboard'
     });
