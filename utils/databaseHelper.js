@@ -18,16 +18,24 @@ db.exec(`
         lastDaily INTEGER,
         registeredAt TEXT,
         isBanned INTEGER DEFAULT 0,
-        isAiBanned INTEGER DEFAULT 0
+        isAiBanned INTEGER DEFAULT 0,
+        bannedUntil INTEGER DEFAULT 0,
+        aiBannedUntil INTEGER DEFAULT 0
     )
 `);
 
-// Pastikan kolom bank ada (Migrasi jika database lama belum ada kolom ini)
+// Pastikan kolom bank & bannedUntil ada (Migrasi jika database lama belum ada kolom ini)
 try {
     db.exec("ALTER TABLE users ADD COLUMN bank INTEGER DEFAULT 0;");
 } catch (e) {
     // Abaikan jika sudah ada
 }
+try {
+    db.exec("ALTER TABLE users ADD COLUMN bannedUntil INTEGER DEFAULT 0;");
+} catch (e) {}
+try {
+    db.exec("ALTER TABLE users ADD COLUMN aiBannedUntil INTEGER DEFAULT 0;");
+} catch (e) {}
 
 // Mendaftarkan user baru
 function registerUser(sender, name, age) {
@@ -161,13 +169,13 @@ function saveUsers(usersObject) {
     if (!usersObject) return;
     const stmt = db.prepare(`
         UPDATE users 
-        SET name = ?, age = ?, money = ?, bank = ?, level = ?, exp = ?, inventory = ?, lastDaily = ?, registeredAt = ?, isBanned = ?, isAiBanned = ?
+        SET name = ?, age = ?, money = ?, bank = ?, level = ?, exp = ?, inventory = ?, lastDaily = ?, registeredAt = ?, isBanned = ?, isAiBanned = ?, bannedUntil = ?, aiBannedUntil = ?
         WHERE id = ?
     `);
     
     const insertStmt = db.prepare(`
-        INSERT INTO users (id, name, age, money, bank, level, exp, inventory, lastDaily, registeredAt, isBanned, isAiBanned)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO users (id, name, age, money, bank, level, exp, inventory, lastDaily, registeredAt, isBanned, isAiBanned, bannedUntil, aiBannedUntil)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     // Pakai transaksi supaya lebih cepat
@@ -177,12 +185,14 @@ function saveUsers(usersObject) {
             const invString = JSON.stringify(u.inventory || {});
             const isBanned = u.isBanned || 0;
             const isAiBanned = u.isAiBanned || 0;
+            const bannedUntil = u.bannedUntil || 0;
+            const aiBannedUntil = u.aiBannedUntil || 0;
             const bankSaldo = u.bank || 0;
             
             if (exists) {
-                stmt.run(u.name, u.age, u.money, bankSaldo, u.level, u.exp, invString, u.lastDaily, u.registeredAt, isBanned, isAiBanned, id);
+                stmt.run(u.name, u.age, u.money, bankSaldo, u.level, u.exp, invString, u.lastDaily, u.registeredAt, isBanned, isAiBanned, bannedUntil, aiBannedUntil, id);
             } else {
-                insertStmt.run(id, u.name, u.age, u.money, bankSaldo, u.level, u.exp, invString, u.lastDaily, u.registeredAt, isBanned, isAiBanned);
+                insertStmt.run(id, u.name, u.age, u.money, bankSaldo, u.level, u.exp, invString, u.lastDaily, u.registeredAt, isBanned, isAiBanned, bannedUntil, aiBannedUntil);
             }
         }
     });

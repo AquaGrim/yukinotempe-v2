@@ -239,11 +239,27 @@ async function handleIncomingMessage(sock, msg) {
             const isMentioningYuki = lowerBody.includes('yuki') || lowerBody.includes('yukino') || isDirectMediaToYuki;
 
             if (isMentioningYuki) {
-                // Cek jika user kena ban khusus AI
+                // Cek jika user kena ban khusus AI (dengan pengecekan durasi expiry)
                 if (isUserRegistered(sender)) {
                     const userData = getUser(sender);
-                    if (userData && userData.isAiBanned === 1 && !msg.key.fromMe && !sender.includes('6281292744550')) {
-                        return sock.sendMessage(from, { text: '🤖 Maaf ya, akses kamu buat ngobrol sama AI Yuki lagi ditutup sementara sama Owner.' }, { quoted: msg });
+                    if (userData && !msg.key.fromMe && !sender.includes('6281292744550')) {
+                        const now = Date.now();
+                        const isPermanentAiBan = userData.isAiBanned === 1 && (!userData.aiBannedUntil || userData.aiBannedUntil === 0);
+                        const isTimedAiBan = userData.isAiBanned === 1 && userData.aiBannedUntil > now;
+
+                        if (isPermanentAiBan || isTimedAiBan) {
+                            let sisaWaktuStr = '';
+                            if (isTimedAiBan) {
+                                const sisaMenit = Math.ceil((userData.aiBannedUntil - now) / 60000);
+                                sisaWaktuStr = ` Sisa durasi ban kamu: *${sisaMenit} menit*.`;
+                            }
+                            return sock.sendMessage(from, { text: `🤖 Maaf ya, akses kamu buat ngobrol sama AI Yuki lagi ditutup sementara sama Owner.${sisaWaktuStr}` }, { quoted: msg });
+                        } else if (userData.isAiBanned === 1 && userData.aiBannedUntil <= now) {
+                            // Ban AI sudah kadaluarsa, buka otomatis
+                            userData.isAiBanned = 0;
+                            userData.aiBannedUntil = 0;
+                            saveUsers({ [sender]: userData });
+                        }
                     }
                 }
                 
@@ -269,6 +285,30 @@ async function handleIncomingMessage(sock, msg) {
         const command = args.shift().toLowerCase();
 
         console.log(`[CMD] ${pushName} (${sender}): ${command}`);
+
+        // Cek jika user kena ban global (dengan pengecekan durasi expiry)
+        if (isUserRegistered(sender) && !msg.key.fromMe && !sender.includes('6281292744550')) {
+            const userData = getUser(sender);
+            if (userData) {
+                const now = Date.now();
+                const isPermanentBan = userData.isBanned === 1 && (!userData.bannedUntil || userData.bannedUntil === 0);
+                const isTimedBan = userData.isBanned === 1 && userData.bannedUntil > now;
+
+                if (isPermanentBan || isTimedBan) {
+                    let sisaWaktuStr = '';
+                    if (isTimedBan) {
+                        const sisaMenit = Math.ceil((userData.bannedUntil - now) / 60000);
+                        sisaWaktuStr = `\n⏱️ Sisa durasi ban: *${sisaMenit} menit*.`;
+                    }
+                    return sock.sendMessage(from, { text: `🚫 Maaf @${sender.split('@')[0]}, akunmu sedang di-ban dari seluruh fitur bot!${sisaWaktuStr}`, mentions: [sender] }, { quoted: msg });
+                } else if (userData.isBanned === 1 && userData.bannedUntil <= now) {
+                    // Ban global sudah kadaluarsa, unban otomatis
+                    userData.isBanned = 0;
+                    userData.bannedUntil = 0;
+                    saveUsers({ [sender]: userData });
+                }
+            }
+        }
 
         // Berikan EXP untuk setiap command yang valid (kalau sudah terdaftar)
         if (isUserRegistered(sender)) {

@@ -208,7 +208,21 @@ async function handleBanUser(sock, msg, from, sender, args, isBan, isAiOnly = fa
 
     if (!target) {
         const typeText = isAiOnly ? 'AI Yuki' : 'Bot Global';
-        return sock.sendMessage(from, { text: `Kamu harus men-tag (@) user atau me-reply pesan user yang mau di-${isBan ? 'ban' : 'unban'} dari fitur ${typeText}!` }, { quoted: msg });
+        return sock.sendMessage(from, { text: `Kamu harus men-tag (@) user atau me-reply pesan user yang mau di-${isBan ? 'ban' : 'unban'} dari fitur ${typeText}!\n\n📌 *Format Penggunaan:*\n- *!ban @user [durasi_menit]* (Contoh: \`!ban @user 60\` untuk ban 60 menit, atau tanpa angka untuk ban permanen)\n- *!banai @user [durasi_menit]* (Khusus ban AI Yuki)` }, { quoted: msg });
+    }
+
+    // Ambil parameter durasi menit jika ada
+    let durationMinutes = null;
+    if (isBan) {
+        for (const arg of args) {
+            const cleanArg = arg.replace(/[^0-9]/g, '');
+            // Ambil angka yang bukan bagian dari tag nomor handphone target
+            const targetNumber = target.split('@')[0];
+            if (cleanArg && cleanArg !== targetNumber && parseInt(cleanArg) > 0) {
+                durationMinutes = parseInt(cleanArg);
+                break;
+            }
+        }
     }
 
     // === LID MAPPING UNTUK TARGET BAN ===
@@ -230,19 +244,31 @@ async function handleBanUser(sock, msg, from, sender, args, isBan, isAiOnly = fa
     }
 
     const user = getUser(target);
-    const usersMap = { [target]: user };
+    const now = Date.now();
+    let expireTimestamp = 0;
+    if (isBan && durationMinutes) {
+        expireTimestamp = now + (durationMinutes * 60 * 1000);
+    }
 
     if (isAiOnly) {
         user.isAiBanned = isBan ? 1 : 0;
+        user.aiBannedUntil = isBan ? expireTimestamp : 0;
     } else {
         user.isBanned = isBan ? 1 : 0;
+        user.bannedUntil = isBan ? expireTimestamp : 0;
     }
     
+    const usersMap = { [target]: user };
     saveUsers(usersMap);
 
     const typeStr = isAiOnly ? 'fitur Ngobrol AI Yuki 🤖' : 'seluruh fitur Bot 🚫';
     const statusText = isBan ? 'BANNED' : 'UNBANNED';
-    return sock.sendMessage(from, { text: `User @${target.split('@')[0]} berhasil di-${statusText} dari ${typeStr}!`, mentions: [target] }, { quoted: msg });
+    let durationStr = '';
+    if (isBan) {
+        durationStr = durationMinutes ? ` selama *${durationMinutes} menit*` : ' secara *Permanen*';
+    }
+
+    return sock.sendMessage(from, { text: `✅ User @${target.split('@')[0]} berhasil di-${statusText} dari ${typeStr}${durationStr}!`, mentions: [target] }, { quoted: msg });
 }
 
 async function handleListUsers(sock, msg, from, sender) {
